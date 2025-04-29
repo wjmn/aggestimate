@@ -1,0 +1,13 @@
+{
+  "main.css": "https://wjmn.github.io/simfrax/static/css/main.3bbeada9.chunk.css",
+  "main.js": "https://wjmn.github.io/simfrax/static/js/main.bb1bcaf3.chunk.js",
+  "main.js.map": "https://wjmn.github.io/simfrax/static/js/main.bb1bcaf3.chunk.js.map",
+  "runtime~main.js": "https://wjmn.github.io/simfrax/static/js/runtime~main.6c073164.js",
+  "runtime~main.js.map": "https://wjmn.github.io/simfrax/static/js/runtime~main.6c073164.js.map",
+  "vendors~main.js": "https://wjmn.github.io/simfrax/static/js/vendors~main.ded87515.chunk.js",
+  "vendors~main.js.map": "https://wjmn.github.io/simfrax/static/js/vendors~main.ded87515.chunk.js.map",
+  "./service-worker.js": "https://wjmn.github.io/simfrax/./service-worker.js",
+  "index.html": "https://wjmn.github.io/simfrax/index.html",
+  "manifest.json": "https://wjmn.github.io/simfrax/manifest.json",
+  "precache-manifest.e084ea59122a0c3beae08988f643658f.js": "https://wjmn.github.io/simfrax/precache-manifest.e084ea59122a0c3beae08988f643658f.js"
+}
