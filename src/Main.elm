@@ -4,6 +4,7 @@ import Allele exposing (Allele, AllelePair, AllelePairId(..))
 import Array exposing (Array)
 import Array.Extra
 import Browser
+import Estimation exposing (EstimatedAggPositions, SelectedAggPosition, calculateEstimatedAggPosition)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -12,8 +13,7 @@ import SimTriplet
 import Svg exposing (svg)
 import Svg.Attributes as SA
 import Triplet exposing (Triplet)
-import Estimation exposing (EstimatedAggPositions, SelectedAggPosition)
-import Estimation exposing (calculateEstimatedAggPosition)
+
 
 
 ---- MODEL ----
@@ -23,7 +23,7 @@ type alias Model =
     { allelePair : AllelePair
     , lastAggPositionsA : List Int
     , lastAggPositionsB : List Int
-    , aggPeakPositions: List Int
+    , aggPeakPositions : List Int
     , aggInterruptionEstimates : List EstimatedAggPositions
     , selectedAggPositions : List SelectedAggPosition
     , simTripletValues : Array Int
@@ -37,8 +37,10 @@ initialModel =
             { alleleA = Allele.createWithSize 20
             , alleleB = Allele.createWithSize 24
             }
-        peakIndices = 
+
+        peakIndices =
             Estimation.getPeakIndicesFromAlleles initialPair
+
         estimatedAggPositions =
             Estimation.calculateAllEstimatedAggPositions initialPair peakIndices
     in
@@ -64,10 +66,10 @@ init =
 type Msg
     = ChangedAlleleSize AllelePairId String
     | ClickedAlleleBlock AllelePairId Int
-    | ClickedAddPeakIndex 
-    | ChangedPeakIndex Int Int 
+    | ClickedAddPeakIndex
+    | ChangedPeakIndex Int Int
     | SelectedEstimatedPeak Int AllelePairId
-    | ClickedDeletePeakIndex Int 
+    | ClickedDeletePeakIndex Int
     | NoOp
 
 
@@ -107,7 +109,7 @@ update msg model =
                         AlleleB ->
                             { allelePair | alleleB = List.foldl (\i acc -> Allele.setTripletAtIndex i Triplet.Agg acc) (Allele.changeTripletLength newSize model.allelePair.alleleB) model.lastAggPositionsB }
 
-                newPeakIndices = 
+                newPeakIndices =
                     Estimation.getPeakIndicesFromAlleles newAllelePair
 
                 newEstimatedAggPositions =
@@ -118,8 +120,6 @@ update msg model =
 
                 newCalculatedSimTripletValues =
                     SimTriplet.calculateFragmentDistribution newAllelePair
-
-
             in
             { model | allelePair = newAllelePair, simTripletValues = newCalculatedSimTripletValues, aggPeakPositions = newPeakIndices, aggInterruptionEstimates = newEstimatedAggPositions, selectedAggPositions = newSelectedAggPositions }
                 |> withCmd Cmd.none
@@ -161,7 +161,7 @@ update msg model =
                         AlleleA ->
                             model.lastAggPositionsB
 
-                newPeakIndices = 
+                newPeakIndices =
                     Estimation.getPeakIndicesFromAlleles newAllelePair
 
                 newEstimatedAggPositions =
@@ -172,8 +172,6 @@ update msg model =
 
                 newCalculatedSimTripletValues =
                     SimTriplet.calculateFragmentDistribution newAllelePair
-
-
             in
             { model | allelePair = newAllelePair, lastAggPositionsA = lastAggPositionsA, lastAggPositionsB = lastAggPositionsB, simTripletValues = newCalculatedSimTripletValues, aggPeakPositions = newPeakIndices, aggInterruptionEstimates = newEstimatedAggPositions, selectedAggPositions = newSelectedAggPositions }
                 |> withCmd Cmd.none
@@ -181,30 +179,35 @@ update msg model =
         ClickedAddPeakIndex ->
             let
                 -- Add a new peak index with default value 0  to end of aggPeakPositions
-                
                 newPeakIndices =
-                    model.aggPeakPositions ++ [1]
+                    model.aggPeakPositions ++ [ 1 ]
 
-                selectedAggPositions = 
+                selectedAggPositions =
                     model.selectedAggPositions ++ [ { allele = AlleleA, position = calculateEstimatedAggPosition model.allelePair.alleleA 1 } ]
 
-
-                newAllelePair = 
+                newAllelePair =
                     -- Make a new allele pair with the new peak indices
                     Estimation.makeAlleles model.allelePair selectedAggPositions
 
                 newCalculatedSimTripletValues =
-                    SimTriplet.calculateFragmentDistribution newAllelePair                
-
-            in 
+                    SimTriplet.calculateFragmentDistribution newAllelePair
+            in
             { model | aggPeakPositions = newPeakIndices, selectedAggPositions = selectedAggPositions, allelePair = newAllelePair, simTripletValues = newCalculatedSimTripletValues }
                 |> withCmd Cmd.none
 
-        ChangedPeakIndex index value -> 
+        ChangedPeakIndex index value ->
             let
                 -- Update the peak index at the given index with the new value
                 newPeakIndices =
-                    List.indexedMap (\i v -> if i == index then value else v) model.aggPeakPositions
+                    List.indexedMap
+                        (\i v ->
+                            if i == index then
+                                value
+
+                            else
+                                v
+                        )
+                        model.aggPeakPositions
 
                 newEstimatedAggPositions =
                     Estimation.calculateAllEstimatedAggPositions model.allelePair newPeakIndices
@@ -213,48 +216,55 @@ update msg model =
                     List.map (Estimation.getMostLikelyAggPosition model.allelePair) newEstimatedAggPositions
                         |> List.filterMap identity
 
-                -- Update the alleles 
-                newAllellePair = 
+                -- Update the alleles
+                newAllellePair =
                     -- Make a new allele pair with the new peak indices
                     Estimation.makeAlleles model.allelePair newSelectedAggPositions
+
                 newCalculatedSimTripletValues =
                     SimTriplet.calculateFragmentDistribution newAllellePair
-                
-
-            in 
+            in
             { model | aggPeakPositions = newPeakIndices, aggInterruptionEstimates = newEstimatedAggPositions, selectedAggPositions = newSelectedAggPositions, allelePair = newAllellePair, simTripletValues = newCalculatedSimTripletValues }
                 |> withCmd Cmd.none
 
         SelectedEstimatedPeak index allelePairId ->
             let
-                alleleSelected = 
+                alleleSelected =
                     case allelePairId of
                         AlleleA ->
                             model.allelePair.alleleA
 
                         AlleleB ->
                             model.allelePair.alleleB
+
                 -- Update the selected peak index at the given index with the new value
                 newSelectedAggPositions =
-                    List.indexedMap (\i v -> if i == index then { allele = allelePairId, position = calculateEstimatedAggPosition alleleSelected (List.Extra.getAt index model.aggPeakPositions |> Maybe.withDefault 0) } else v) model.selectedAggPositions
+                    List.indexedMap
+                        (\i v ->
+                            if i == index then
+                                { allele = allelePairId, position = calculateEstimatedAggPosition alleleSelected (List.Extra.getAt index model.aggPeakPositions |> Maybe.withDefault 0) }
 
+                            else
+                                v
+                        )
+                        model.selectedAggPositions
 
-                newAllelePair = 
+                newAllelePair =
                     -- Make a new allele pair with the new peak indices
                     Estimation.makeAlleles model.allelePair newSelectedAggPositions
 
                 newCalculatedSimTripletValues =
                     SimTriplet.calculateFragmentDistribution newAllelePair
-            in 
+            in
             { model | selectedAggPositions = newSelectedAggPositions, allelePair = newAllelePair, simTripletValues = newCalculatedSimTripletValues }
                 |> withCmd Cmd.none
+
         ClickedDeletePeakIndex index ->
             let
                 -- Remove the peak index at the given index
                 newPeakIndices =
                     -- Remove at index
                     List.Extra.removeAt index model.aggPeakPositions
-                    
 
                 newEstimatedAggPositions =
                     Estimation.calculateAllEstimatedAggPositions model.allelePair newPeakIndices
@@ -263,19 +273,16 @@ update msg model =
                     List.map (Estimation.getMostLikelyAggPosition model.allelePair) newEstimatedAggPositions
                         |> List.filterMap identity
 
-                -- Update the alleles 
-                newAllellePair = 
+                -- Update the alleles
+                newAllellePair =
                     -- Make a new allele pair with the new peak indices
                     Estimation.makeAlleles model.allelePair newSelectedAggPositions
+
                 newCalculatedSimTripletValues =
                     SimTriplet.calculateFragmentDistribution newAllellePair
-
-            in 
+            in
             { model | aggPeakPositions = newPeakIndices, aggInterruptionEstimates = newEstimatedAggPositions, selectedAggPositions = newSelectedAggPositions, allelePair = newAllellePair, simTripletValues = newCalculatedSimTripletValues }
                 |> withCmd Cmd.none
-
-                
-            
 
         NoOp ->
             ( model, Cmd.none )
@@ -289,65 +296,61 @@ view : Model -> Html Msg
 view model =
     div [ id "main" ]
         [ div [ id "section-top" ]
-            [ div [ id "section-top-left" ]
+            [ div [ id "section-inputs" ]
                 [ h1 [ class "title" ] [ text "AGGEstimate" ]
                 , h2 [ class "subtitle" ] [ text "Input the allele sizes and the peak numbers at which a dip starts (indicating an AGG interspersion)." ]
-                , div []
-                    [viewPeakSizeInputs model]
+                , div [] [ viewPeakSizeInputs model ]
                 ]
-            , div [ id "section-top-right" ]
+            , div [ id "section-outputs" ]
                 [ div [ id "section-top-right-bordered" ]
                     [ div [ class "allele-section-heading" ] [ text "Fragile X Genotype" ]
                     , viewAllele AlleleA model.allelePair.alleleA
                     , viewAllele AlleleB model.allelePair.alleleB
                     ]
-                ]
-            ]
-        , div [ id "section-bottom" ]
-            [ div [ id "section-bottom-left" ] []
-            , div [ id "section-bottom-right" ]
-                [ viewSimTriplet model
+                , viewSimTriplet model
                 ]
             ]
         ]
+
 
 viewPeakSizeInputs : Model -> Html Msg
 viewPeakSizeInputs model =
     div [ id "peak-size-inputs" ]
         -- table with 3 columns
         [ table [ id "peak-size-inputs-table" ]
-            ( tr []
+            (tr []
                 [ th [] [ text "Peak" ]
-                , th [] [ input [ type_ "number", value (String.fromInt (Allele.getSize model.allelePair.alleleA )), onInput (ChangedAlleleSize AlleleA) ] [] ]
-                , th [] [ input [ type_ "number", value (String.fromInt (Allele.getSize model.allelePair.alleleB )), onInput (ChangedAlleleSize AlleleB) ] [] ]
+                , th [] [ input [ type_ "number", value (String.fromInt (Allele.getSize model.allelePair.alleleA)), onInput (ChangedAlleleSize AlleleA) ] [] ]
+                , th [] [ input [ type_ "number", value (String.fromInt (Allele.getSize model.allelePair.alleleB)), onInput (ChangedAlleleSize AlleleB) ] [] ]
                 , th [] []
-                ]  ::
-                (List.indexedMap
-                    (\i (peakIndex,selectedAtIndex) ->
+                ]
+                :: List.indexedMap
+                    (\i ( peakIndex, selectedAtIndex ) ->
                         let
-                            (classA, classB) = 
+                            ( classA, classB ) =
                                 if selectedAtIndex.allele == AlleleA then
-                                    ("selected", "not-selected")
-                                else if selectedAtIndex.allele == AlleleB then 
-                                    ("not-selected", "selected")
+                                    ( "selected", "not-selected" )
+
+                                else if selectedAtIndex.allele == AlleleB then
+                                    ( "not-selected", "selected" )
+
                                 else
-                                    ("unknown", "unknown")
-                        in 
+                                    ( "unknown", "unknown" )
+                        in
                         tr []
                             [ td [] [ input [ type_ "number", value (String.fromInt peakIndex), onInput (String.toInt >> Maybe.withDefault 0 >> ChangedPeakIndex i) ] [] ]
-                            , td [class "table-value",  class classA, onClick (SelectedEstimatedPeak i AlleleA)] [ text (String.fromInt (Estimation.calculateEstimatedAggPosition model.allelePair.alleleA peakIndex)) ]
-                            , td [class "table-value", class classB, onClick (SelectedEstimatedPeak i AlleleB)] [ text (String.fromInt (Estimation.calculateEstimatedAggPosition model.allelePair.alleleB peakIndex)) ]
+                            , td [ class "table-value", class classA, onClick (SelectedEstimatedPeak i AlleleA) ] [ text (String.fromInt (Estimation.calculateEstimatedAggPosition model.allelePair.alleleA peakIndex)) ]
+                            , td [ class "table-value", class classB, onClick (SelectedEstimatedPeak i AlleleB) ] [ text (String.fromInt (Estimation.calculateEstimatedAggPosition model.allelePair.alleleB peakIndex)) ]
                             , td [ class "delete-peak-index", onClick (ClickedDeletePeakIndex i) ]
                                 [ text "X" ]
                             ]
                     )
                     (List.map2 Tuple.pair model.aggPeakPositions model.selectedAggPositions)
-                )
             )
         , div [ class "add-peak-index-button-container" ]
             [ button [ class "add-peak-index-button", onClick ClickedAddPeakIndex ] [ text "Add Peak Index" ] ]
         ]
-        
+
 
 viewAlleleVisualTriplet : AllelePairId -> Int -> Triplet -> Html Msg
 viewAlleleVisualTriplet allelePairId index triplet =
@@ -383,49 +386,52 @@ viewAllele allelePairId allele =
 viewSimTriplet : Model -> Html Msg
 viewSimTriplet model =
     let
-
-        xmax = 
+        xmax =
             SimTriplet.primerRDistance + SimTriplet.primerRLength + (Allele.maxAlleleSize * Triplet.size) + SimTriplet.primerFDistance + SimTriplet.primerFLength + SimTriplet.tripletPrimerAddLength + 10
 
-        xmin = 80
-        xminString = String.fromInt xmin
+        xmin =
+            80
 
-        viewBoxString = 
+        xminString =
+            String.fromInt xmin
+
+        viewBoxString =
             xminString ++ " 1 " ++ String.fromInt xmax ++ " 112"
 
         -- Get location of two full sized alleles
         fullAlleleAUnsorted =
             SimTriplet.getFullFragmentSize model.allelePair.alleleA
-        alleleASizeUnsorted = 
+
+        alleleASizeUnsorted =
             Allele.getSize model.allelePair.alleleA
 
         fullAlleleBUnsorted =
             SimTriplet.getFullFragmentSize model.allelePair.alleleB
 
-        alleleBSizeUnsorted = 
+        alleleBSizeUnsorted =
             Allele.getSize model.allelePair.alleleB
 
-        (alleleASize, alleleBSize) = 
+        ( alleleASize, alleleBSize ) =
             if alleleASizeUnsorted > alleleBSizeUnsorted then
-                (alleleASizeUnsorted, alleleBSizeUnsorted)
+                ( alleleASizeUnsorted, alleleBSizeUnsorted )
 
             else
-                (alleleBSizeUnsorted, alleleASizeUnsorted)
+                ( alleleBSizeUnsorted, alleleASizeUnsorted )
 
-        (fullAlleleA, fullAlleleB) = 
+        ( fullAlleleA, fullAlleleB ) =
             if fullAlleleAUnsorted > fullAlleleBUnsorted then
-                (fullAlleleAUnsorted, fullAlleleBUnsorted)
+                ( fullAlleleAUnsorted, fullAlleleBUnsorted )
 
             else
-                (fullAlleleBUnsorted, fullAlleleAUnsorted)
+                ( fullAlleleBUnsorted, fullAlleleAUnsorted )
     in
     div [ class "sim-container" ]
         [ div [ class "sim-graph" ]
             [ svg [ SA.viewBox viewBoxString ]
-                [ 
-                -- draw rectangles at the two full alleles
-                Svg.g []
+                [ -- draw rectangles at the two full alleles
+                  Svg.g []
                     [ Svg.rect [ SA.x (String.fromFloat <| toFloat fullAlleleA - 1.5), SA.y "11", SA.width "3", SA.height "89", SA.fill "#ccc", SA.opacity "0.5" ] []
+
                     -- put text in grey box
                     , Svg.rect [ SA.x (String.fromFloat <| toFloat fullAlleleA - 10), SA.y "101", SA.width "20", SA.height "11", SA.fill "#ccc", SA.opacity "0.5", SA.stroke "green" ] []
                     , Svg.text_ [ SA.class "no-pointer", SA.x (String.fromInt fullAlleleA), SA.y "110", SA.fill "black", SA.fontSize "8px", SA.textAnchor "middle" ] [ Svg.text (String.fromInt alleleASize) ]
@@ -433,12 +439,9 @@ viewSimTriplet model =
                     , Svg.rect [ SA.x (String.fromFloat <| toFloat fullAlleleB - 10), SA.y "101", SA.width "20", SA.height "11", SA.fill "#ccc", SA.opacity "0.5", SA.stroke "green" ] []
                     , Svg.text_ [ SA.class "no-pointer", SA.x (String.fromInt fullAlleleB), SA.y "110", SA.fill "black", SA.fontSize "8px", SA.textAnchor "middle" ] [ Svg.text (String.fromInt alleleBSize) ]
                     ]
-
-  
                 , Svg.line
                     [ SA.x1 xminString, SA.y1 "100", SA.x2 "1000", SA.y2 "100", SA.stroke "blue" ]
                     []
-
                 , Svg.g []
                     [ Svg.polyline
                         [ SA.points
@@ -470,10 +473,10 @@ viewSimTriplet model =
                                     ]
                             )
                     )
-
                 ]
             ]
         ]
+
 
 
 ---- PROGRAM ----

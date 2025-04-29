@@ -44,23 +44,23 @@ body {
 }
 
 #section-top {
-  height: 45%;
   width: 100%;
   display: flex;
 }
 
-#section-top-left {
+#section-inputs {
+  min-width: 400px;
   padding: 1rem;
-  overflow: auto;
-  min-width: 600px;
 }
 
-#section-top-right {
+#section-outputs {
+  padding: 1rem;
 }
 
 
 #section-top-right-bordered {
   margin: 1rem;
+  margin-bottom: 2rem;
   padding-top: 1rem;
   border-top: 5px solid black;
   background: oklch(98.5% 0.002 247.839);
