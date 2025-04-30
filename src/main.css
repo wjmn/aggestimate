@@ -18,9 +18,9 @@ body {
   font-family: "Inter", system-ui, sans-serif;
 }
 
-.title, p {
-  font-family: "Merriweather", "Times New Roman", serif;
-}
+/* .title, p { */
+  /* font-family: "Merriweather", "Times New Roman", serif; */
+/* } */
 
 .title {
   margin: 0;
@@ -49,24 +49,22 @@ body {
 }
 
 #section-inputs {
-  min-width: 400px;
+  width: 600px;
   padding: 1rem;
   border-right: 1px solid black;
+  height: 100vh;
+  overflow: auto;
+  resize: horizontal;
 }
 
 #section-outputs {
   padding: 1rem;
+  width: 100%;
 }
 
 
 #section-top-right-bordered {
-  margin: 1rem;
-  margin-bottom: 2rem;
-  padding-top: 1rem;
-  border-top: 5px solid black;
-  background: oklch(98.5% 0.002 247.839);
-  padding: 1rem;
-  padding-bottom: 2rem;
+  padding-bottom: 1rem;
 }
 
 #section-bottom {
@@ -92,15 +90,20 @@ body {
 
 .example-image {
   background: white;
-  max-width: 100%;
+  max-width: 360px;
+  margin: auto;
   padding: 1rem;
   padding-bottom: 0rem;
+  position: relative;
+  display: block;
+  margin-bottom: 1rem;
 }
 
 .allele-container {
   display: flex;
   flex-direction: column;
-  margin-top: 2rem;
+  margin-top: 1rem;
+  margin-bottom: 1.8rem;
 }
 
 .triplet-text {
@@ -203,9 +206,8 @@ body {
 
 .allele-section-heading {
   font-size: 1.5rem;
-  font-family: "Merriweather", "Times New Roman", serif;
+  /* font-family: "Merriweather", "Times New Roman", serif; */
   font-weight: bold;
-  margin-bottom: 1rem;
 }
 
 .sim-graph {
@@ -293,4 +295,14 @@ td {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   min-width: 1rem;
+}
+
+.interpretation-container {
+  font-size: 0.9em;
+}
+
+.interpretation-allele-header {
+  font-weight: bold;
+  margin-top: 1rem;
+  margin-bottom: -0.5rem;
 }

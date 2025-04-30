@@ -16,6 +16,7 @@ import Svg exposing (svg)
 import Svg.Attributes as SA
 import Triplet exposing (Triplet)
 import List.Extra exposing (last)
+import Risk
 
 
 
@@ -554,7 +555,15 @@ view model =
                 [ h1 [ class "title" ] [ text "AGGEstimate" ]
                 , h2 [ class "subtitle" ] [ text "Input the allele sizes and the positions at which an AGG dip starts (first peak = position 5) e.g." ]
                 , img [ class "example-image", src "example.png", alt "Example" ] []
+                , div [] [ text "Enter your data below:"]
                 , div [] [ viewPeakSizeInputs model ]
+                , div [class "interpretation-container"]
+                    [ h4 [] [text "Interpretation"]
+                    , div [class "interpretation-allele-header"] [text <| "Allele A: " ++ String.fromInt (Allele.getSize model.allelePair.alleleA) ++ " repeats"]
+                    , p [] [ text (Risk.getRiskString model.allelePair.alleleA) ]
+                    , div [class "interpretation-allele-header"] [text <| "Allele B: " ++ String.fromInt (Allele.getSize model.allelePair.alleleB) ++ " repeats"]
+                    , p [] [ text (Risk.getRiskString model.allelePair.alleleB) ]]
+
                 ]
             , div [ id "section-outputs" ]
                 [ div [ id "section-top-right-bordered" ]
@@ -562,6 +571,7 @@ view model =
                     , viewAllele AlleleA model.allelePair.alleleA
                     , viewAllele AlleleB model.allelePair.alleleB
                     ]
+                , h1 [class "allele-section-heading"] [text "Simulated Data"]
                 , viewSimTriplet model
                 , viewSimAgg model
                 , viewSimAggRev model
