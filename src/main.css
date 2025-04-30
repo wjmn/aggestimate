@@ -51,6 +51,7 @@ body {
 #section-inputs {
   min-width: 400px;
   padding: 1rem;
+  border-right: 1px solid black;
 }
 
 #section-outputs {
@@ -88,6 +89,13 @@ body {
 }
 
 /* Allele */
+
+.example-image {
+  background: white;
+  max-width: 100%;
+  padding: 1rem;
+  padding-bottom: 0rem;
+}
 
 .allele-container {
   display: flex;
@@ -135,7 +143,7 @@ body {
   color: oklch(37.3% 0.034 259.733);
 }
 
-.allele-input:hover {
+.allele-input:hover, input:hover {
   background: oklch(87.2% 0.01 258.338);
 }
 
@@ -238,15 +246,31 @@ table {
   margin: 1rem auto;
 }
 
+td {
+  position: relative;
+}
+
 .delete-peak-index:hover {
   background: oklch(61.2% 0.194 13.428);
 }
 
-.add-peak-index-button {
-  margin-top: 1rem;
+.add-peak-index-button, .reset-button {
   display: block;
-  margin: auto;
+  width: 100%;
+  border: 0px;
+  padding: 4px 2px;
+  cursor: pointer;
+  font-size: 0.9em;
+  height: 100%;
+}
+
+.reset-button {
   padding: 2px 5px;
+  height: 2rem;
+}
+
+.reset-button:hover {
+  background: oklch(71.2% 0.194 13.428);
 }
 
 .table-value {
@@ -255,4 +279,18 @@ table {
 }
 .table-value:hover {
   background: oklch(90.5% 0.182 98.111);
+}
+
+.table-header-alleles, .table-header-dips {
+  background: oklch(37.3% 0.034 259.733);
+  color: white;
+  font-size: 0.9em;
+}
+
+.table-header-dips {
+  -ms-writing-mode: tb-rl;
+  -webkit-writing-mode: vertical-rl;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  min-width: 1rem;
 }

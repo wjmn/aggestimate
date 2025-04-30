@@ -4,6 +4,7 @@ import Triplet exposing (Triplet(..))
 import Allele exposing (Allele, AllelePair, AllelePairId(..))
 import Allele exposing (AllelePair)
 import Set
+import Html exposing (select)
 
 
 type alias EstimatedAggPositions = 
@@ -19,7 +20,7 @@ calculateEstimatedAggPosition allele peakIndex =
     let
         numTriplets = List.length allele.triplets
     in
-    numTriplets - peakIndex - 3 
+    numTriplets - (peakIndex - 4) - 3 
 
 calculateEstimatedAggPositions : AllelePair -> Int -> EstimatedAggPositions
 calculateEstimatedAggPositions allelePair peakIndex =
@@ -48,38 +49,54 @@ getPeakIndicesFromAlleles allelePair =
     let
         alleleASize = List.length allelePair.alleleA.triplets
         alleleBSize = List.length allelePair.alleleB.triplets
-        existingAggPositionsA = allelePair.alleleA.triplets |> List.indexedMap (\i t -> if t == Triplet.Agg then Just (alleleASize - (i+1) - 3) else Nothing) |> List.filterMap identity
-        existingAggPositionsB = allelePair.alleleB.triplets |> List.indexedMap (\i t -> if t == Triplet.Agg then Just (alleleBSize - (i+1) - 3) else Nothing) |> List.filterMap identity
+        existingAggPositionsA = allelePair.alleleA.triplets |> List.indexedMap (\i t -> if t == Triplet.Agg then Just (alleleASize - (i+1-4) - 3) else Nothing) |> List.filterMap identity
+        existingAggPositionsB = allelePair.alleleB.triplets |> List.indexedMap (\i t -> if t == Triplet.Agg then Just (alleleBSize - (i+1-4) - 3) else Nothing) |> List.filterMap identity
     in 
     existingAggPositionsA ++ existingAggPositionsB
 
-getMostLikelyAggPosition : AllelePair -> EstimatedAggPositions -> Maybe SelectedAggPosition
-getMostLikelyAggPosition allelePair estimatedAggPositions =
+getMostLikelyAggPositions : List EstimatedAggPositions -> List SelectedAggPosition
+getMostLikelyAggPositions estimatedAggPositions =
+    -- Sequentially pick a position then add to a growing list
     let
-        estimatedAggPositionA = estimatedAggPositions.alleleA
-        estimatedAggPositionB = estimatedAggPositions.alleleB
-        existingAggPositionsA = allelePair.alleleA.triplets |> List.indexedMap (\i t -> if t == Triplet.Agg then Just (i+1) else Nothing) |> List.filterMap identity |> Set.fromList
-        existingAggPositionsB = allelePair.alleleB.triplets |> List.indexedMap (\i t -> if t == Triplet.Agg then Just (i+1) else Nothing) |> List.filterMap identity |> Set.fromList
-    in
-    -- If one is below zero, then choose the other
-    if estimatedAggPositionA < 0 && estimatedAggPositionB < 0 then
-        Just {allele = AlleleA, position = estimatedAggPositionA}
-    else if estimatedAggPositionA < 0 then
-        Just { allele = AlleleB, position = estimatedAggPositionB }
-    else if estimatedAggPositionB < 0 then
-        Just { allele = AlleleA, position = estimatedAggPositionA}
-    else
-        -- Otherwise if it already exists in one of the alleles, then choose that one
-        if Set.member estimatedAggPositionA existingAggPositionsA then
-            Just { allele = AlleleB, position = estimatedAggPositionB }
-        else if Set.member estimatedAggPositionB existingAggPositionsB then
-            Just { allele = AlleleA, position = estimatedAggPositionA }
-        else
-            -- Otherwise choose the one with the lowest value
-            if estimatedAggPositionA < estimatedAggPositionB then
-                Just { allele = AlleleA, position = estimatedAggPositionA }
-            else
-                Just { allele = AlleleB, position = estimatedAggPositionB }
+        selectedAggPositions = 
+            List.foldl (\est acc -> 
+                let
+                    positionsA = List.filter (\p -> p.allele == AlleleA) acc |> List.map (.position) |> Set.fromList
+                    positionsB = List.filter (\p -> p.allele == AlleleB) acc |> List.map (.position) |> Set.fromList 
+                    (allele, position) = 
+                        if est.alleleA < 0 && est.alleleB < 0 then
+                            (AlleleA, 0)
+                        else if est.alleleA < 0 then
+                            (AlleleB, est.alleleB)
+                        else if est.alleleB < 0 then
+                            (AlleleA, est.alleleA)
+                        else
+                            -- If occurs in accumulator positions
+                            if List.member { allele = AlleleA, position = est.alleleA } acc then
+                                (AlleleB, est.alleleB)
+                            else if List.member { allele = AlleleB, position = est.alleleB } acc then
+                                (AlleleA, est.alleleA)
+                            else
+                                -- If alleleA equals 10, 11, 20, 21, or 22, then choose that 
+                                if (est.alleleA == 10 || est.alleleA == 11) && not (Set.member 10 positionsA) && not (Set.member 11 positionsA) then 
+                                    (AlleleA, est.alleleA)
+                                else if (est.alleleA == 20 || est.alleleA == 21 || est.alleleA == 22) && not (Set.member 20 positionsA) && not (Set.member 21 positionsA) && not (Set.member 22 positionsA) then
+                                    (AlleleA, est.alleleA)
+                                else if (est.alleleB == 10 || est.alleleB == 11) && not (Set.member 10 positionsB) && not (Set.member 11 positionsB) then
+                                    (AlleleB, est.alleleB)
+                                else if (est.alleleB == 20 || est.alleleB == 21 || est.alleleB == 22) && not (Set.member 20 positionsB) && not (Set.member 21 positionsB) && not (Set.member 22 positionsB) then
+                                    (AlleleB, est.alleleB)
+                                else
+                                    -- If alleleA is less than alleleB, choose that
+                                    if est.alleleA < est.alleleB then
+                                        (AlleleA, est.alleleA)
+                                    else
+                                        (AlleleB, est.alleleB)
+
+                in
+                { allele = allele, position = position } :: acc) [] estimatedAggPositions
+    in 
+    selectedAggPositions |> List.reverse
 
 
 makeAlleles : AllelePair -> List SelectedAggPosition -> AllelePair 

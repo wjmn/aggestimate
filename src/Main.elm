@@ -9,10 +9,13 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import List.Extra
+import SimAgg
+import SimAggRev
 import SimTriplet
 import Svg exposing (svg)
 import Svg.Attributes as SA
 import Triplet exposing (Triplet)
+import List.Extra exposing (last)
 
 
 
@@ -27,6 +30,8 @@ type alias Model =
     , aggInterruptionEstimates : List EstimatedAggPositions
     , selectedAggPositions : List SelectedAggPosition
     , simTripletValues : Array Int
+    , simAggValues : Array Int
+    , simAggRevValues : Array Int
     }
 
 
@@ -51,6 +56,8 @@ initialModel =
     , aggInterruptionEstimates = estimatedAggPositions
     , selectedAggPositions = Estimation.getSelectedAggPositionsFromAlleles initialPair
     , simTripletValues = SimTriplet.calculateFragmentDistribution initialPair
+    , simAggValues = SimAgg.calculateFragmentDistribution initialPair
+    , simAggRevValues = SimAggRev.calculateFragmentDistribution initialPair
     }
 
 
@@ -65,11 +72,13 @@ init =
 
 type Msg
     = ChangedAlleleSize AllelePairId String
+    | ChangedAlleleSizeTable AllelePairId String
     | ClickedAlleleBlock AllelePairId Int
     | ClickedAddPeakIndex
     | ChangedPeakIndex Int Int
     | SelectedEstimatedPeak Int AllelePairId
     | ClickedDeletePeakIndex Int
+    | ClickedReset
     | NoOp
 
 
@@ -120,8 +129,107 @@ update msg model =
 
                 newCalculatedSimTripletValues =
                     SimTriplet.calculateFragmentDistribution newAllelePair
+
+                newCalculatedSimAggValues =
+                    SimAgg.calculateFragmentDistribution newAllelePair
+
+                newCalculatedSimAggRevValues =
+                    SimAggRev.calculateFragmentDistribution newAllelePair
             in
-            { model | allelePair = newAllelePair, simTripletValues = newCalculatedSimTripletValues, aggPeakPositions = newPeakIndices, aggInterruptionEstimates = newEstimatedAggPositions, selectedAggPositions = newSelectedAggPositions }
+            { model
+                | allelePair = newAllelePair
+                , simTripletValues = newCalculatedSimTripletValues
+                , aggPeakPositions = newPeakIndices
+                , aggInterruptionEstimates = newEstimatedAggPositions
+                , selectedAggPositions = newSelectedAggPositions
+                , simAggValues = newCalculatedSimAggValues
+                , simAggRevValues = newCalculatedSimAggRevValues
+            }
+                |> withCmd Cmd.none
+
+        ChangedAlleleSizeTable allelePairId string ->
+            -- Similar to changing allele size, but do not change the peak indices
+            let
+                newSize =
+                    case String.toInt string of
+                        Just size ->
+                            if size >= 0 && size <= Allele.maxAlleleSize then
+                                size
+
+                            else if size < 0 then
+                                0
+
+                            else
+                                Allele.maxAlleleSize
+
+                        Nothing ->
+                            0
+
+                allelePair =
+                    model.allelePair
+
+                newAllelePairTemp =
+                    case allelePairId of
+                        AlleleA ->
+                            { allelePair | alleleA = Allele.changeTripletLength newSize model.allelePair.alleleA }
+
+                        AlleleB ->
+                            { allelePair | alleleB = Allele.changeTripletLength newSize model.allelePair.alleleB }
+
+                newEstimatedAggPositions =
+                    Estimation.calculateAllEstimatedAggPositions newAllelePairTemp model.aggPeakPositions
+
+                newSelectedAggPositions =
+                    Estimation.getMostLikelyAggPositions newEstimatedAggPositions
+
+                newAllellePair =
+                    Estimation.makeAlleles newAllelePairTemp newSelectedAggPositions
+
+                lastAggPositionsA =
+                    -- just get fresh AGG positions from alleleA
+                    List.indexedMap
+                        (\i t ->
+                            if t == Triplet.Agg then
+                                Just i
+
+                            else
+                                Nothing
+                        )
+                        newAllellePair.alleleA.triplets
+                        |> List.filterMap identity
+
+                lastAggPositionsB =
+                    -- just get fresh AGG positions from alleleB
+                    List.indexedMap
+                        (\i t ->
+                            if t == Triplet.Agg then
+                                Just i
+
+                            else
+                                Nothing
+                        )
+                        newAllellePair.alleleB.triplets
+                        |> List.filterMap identity
+
+                newCalculatedSimTripletValues =
+                    SimTriplet.calculateFragmentDistribution newAllellePair
+
+                newCalculatedSimAggValues =
+                    SimAgg.calculateFragmentDistribution newAllellePair
+
+                newCalculatedSimAggRevValues =
+                    SimAggRev.calculateFragmentDistribution newAllellePair
+            in
+            { model
+                | allelePair = newAllellePair
+                , lastAggPositionsA = lastAggPositionsA
+                , lastAggPositionsB = lastAggPositionsB
+                , simTripletValues = newCalculatedSimTripletValues
+                , aggInterruptionEstimates = newEstimatedAggPositions
+                , selectedAggPositions = newSelectedAggPositions
+                , simAggValues = newCalculatedSimAggValues
+                , simAggRevValues = newCalculatedSimAggRevValues
+            }
                 |> withCmd Cmd.none
 
         ClickedAlleleBlock allelePairId index ->
@@ -172,18 +280,34 @@ update msg model =
 
                 newCalculatedSimTripletValues =
                     SimTriplet.calculateFragmentDistribution newAllelePair
+
+                newCalculatedSimAggValues =
+                    SimAgg.calculateFragmentDistribution newAllelePair
+
+                newCalculatedSimAggRevValues =
+                    SimAggRev.calculateFragmentDistribution newAllelePair
             in
-            { model | allelePair = newAllelePair, lastAggPositionsA = lastAggPositionsA, lastAggPositionsB = lastAggPositionsB, simTripletValues = newCalculatedSimTripletValues, aggPeakPositions = newPeakIndices, aggInterruptionEstimates = newEstimatedAggPositions, selectedAggPositions = newSelectedAggPositions }
+            { model
+                | allelePair = newAllelePair
+                , lastAggPositionsA = lastAggPositionsA
+                , lastAggPositionsB = lastAggPositionsB
+                , simTripletValues = newCalculatedSimTripletValues
+                , aggPeakPositions = newPeakIndices
+                , aggInterruptionEstimates = newEstimatedAggPositions
+                , selectedAggPositions = newSelectedAggPositions
+                , simAggValues = newCalculatedSimAggValues
+                , simAggRevValues = newCalculatedSimAggRevValues
+            }
                 |> withCmd Cmd.none
 
         ClickedAddPeakIndex ->
             let
                 -- Add a new peak index with default value 0  to end of aggPeakPositions
                 newPeakIndices =
-                    model.aggPeakPositions ++ [ 1 ]
+                    model.aggPeakPositions ++ [ 5 ]
 
                 selectedAggPositions =
-                    model.selectedAggPositions ++ [ { allele = AlleleA, position = calculateEstimatedAggPosition model.allelePair.alleleA 1 } ]
+                    model.selectedAggPositions ++ [ { allele = AlleleA, position = calculateEstimatedAggPosition model.allelePair.alleleA 5 } ]
 
                 newAllelePair =
                     -- Make a new allele pair with the new peak indices
@@ -191,8 +315,14 @@ update msg model =
 
                 newCalculatedSimTripletValues =
                     SimTriplet.calculateFragmentDistribution newAllelePair
+
+                newCalculatedSimAggValues =
+                    SimAgg.calculateFragmentDistribution newAllelePair
+
+                newCalculatedSimAggRevValues =
+                    SimAggRev.calculateFragmentDistribution newAllelePair
             in
-            { model | aggPeakPositions = newPeakIndices, selectedAggPositions = selectedAggPositions, allelePair = newAllelePair, simTripletValues = newCalculatedSimTripletValues }
+            { model | aggPeakPositions = newPeakIndices, selectedAggPositions = selectedAggPositions, allelePair = newAllelePair, simTripletValues = newCalculatedSimTripletValues, simAggValues = newCalculatedSimAggValues, simAggRevValues = newCalculatedSimAggRevValues }
                 |> withCmd Cmd.none
 
         ChangedPeakIndex index value ->
@@ -213,18 +343,59 @@ update msg model =
                     Estimation.calculateAllEstimatedAggPositions model.allelePair newPeakIndices
 
                 newSelectedAggPositions =
-                    List.map (Estimation.getMostLikelyAggPosition model.allelePair) newEstimatedAggPositions
-                        |> List.filterMap identity
+                    Estimation.getMostLikelyAggPositions newEstimatedAggPositions
 
                 -- Update the alleles
                 newAllellePair =
                     -- Make a new allele pair with the new peak indices
                     Estimation.makeAlleles model.allelePair newSelectedAggPositions
 
+                lastAggPositionsA =
+                    -- just get fresh AGG positions from alleleA
+                    List.indexedMap
+                        (\i t ->
+                            if t == Triplet.Agg then
+                                Just i
+
+                            else
+                                Nothing
+                        )
+                        newAllellePair.alleleA.triplets
+                        |> List.filterMap identity
+
+                lastAggPositionsB =
+                    -- just get fresh AGG positions from alleleB
+                    List.indexedMap
+                        (\i t ->
+                            if t == Triplet.Agg then
+                                Just i
+
+                            else
+                                Nothing
+                        )
+                        newAllellePair.alleleB.triplets
+                        |> List.filterMap identity
+
                 newCalculatedSimTripletValues =
                     SimTriplet.calculateFragmentDistribution newAllellePair
+
+                newCalculatedSimAggValues =
+                    SimAgg.calculateFragmentDistribution newAllellePair
+
+                newCalculatedSimAggRevValues =
+                    SimAggRev.calculateFragmentDistribution newAllellePair
             in
-            { model | aggPeakPositions = newPeakIndices, aggInterruptionEstimates = newEstimatedAggPositions, selectedAggPositions = newSelectedAggPositions, allelePair = newAllellePair, simTripletValues = newCalculatedSimTripletValues }
+            { model
+                | aggPeakPositions = newPeakIndices
+                , lastAggPositionsA = lastAggPositionsA
+                , lastAggPositionsB = lastAggPositionsB
+                , aggInterruptionEstimates = newEstimatedAggPositions
+                , selectedAggPositions = newSelectedAggPositions
+                , allelePair = newAllellePair
+                , simTripletValues = newCalculatedSimTripletValues
+                , simAggValues = newCalculatedSimAggValues
+                , simAggRevValues = newCalculatedSimAggRevValues
+            }
                 |> withCmd Cmd.none
 
         SelectedEstimatedPeak index allelePairId ->
@@ -252,11 +423,50 @@ update msg model =
                 newAllelePair =
                     -- Make a new allele pair with the new peak indices
                     Estimation.makeAlleles model.allelePair newSelectedAggPositions
+                lastAggPositionsA = 
+                    -- just get fresh AGG positions from alleleA
+                    List.indexedMap
+                        (\i t ->
+                            if t == Triplet.Agg then
+                                Just i
+
+                            else
+                                Nothing
+                        )
+                        newAllelePair.alleleA.triplets
+                        |> List.filterMap identity
+                lastAggPositionsB = 
+                    -- just get fresh AGG positions from alleleB
+                    List.indexedMap
+                        (\i t ->
+                            if t == Triplet.Agg then
+                                Just i
+
+                            else
+                                Nothing
+                        )
+                        newAllelePair.alleleB.triplets
+                        |> List.filterMap identity
+
 
                 newCalculatedSimTripletValues =
                     SimTriplet.calculateFragmentDistribution newAllelePair
+
+                newCalculatedSimAggValues =
+                    SimAgg.calculateFragmentDistribution newAllelePair
+
+                newCalculatedSimAggRevValues =
+                    SimAggRev.calculateFragmentDistribution newAllelePair
             in
-            { model | selectedAggPositions = newSelectedAggPositions, allelePair = newAllelePair, simTripletValues = newCalculatedSimTripletValues }
+            { model
+                | selectedAggPositions = newSelectedAggPositions
+                , allelePair = newAllelePair
+                , lastAggPositionsA = lastAggPositionsA
+                , lastAggPositionsB = lastAggPositionsB
+                , simTripletValues = newCalculatedSimTripletValues
+                , simAggValues = newCalculatedSimAggValues
+                , simAggRevValues = newCalculatedSimAggRevValues
+            }
                 |> withCmd Cmd.none
 
         ClickedDeletePeakIndex index ->
@@ -270,19 +480,63 @@ update msg model =
                     Estimation.calculateAllEstimatedAggPositions model.allelePair newPeakIndices
 
                 newSelectedAggPositions =
-                    List.map (Estimation.getMostLikelyAggPosition model.allelePair) newEstimatedAggPositions
-                        |> List.filterMap identity
+                    Estimation.getMostLikelyAggPositions newEstimatedAggPositions
 
                 -- Update the alleles
                 newAllellePair =
                     -- Make a new allele pair with the new peak indices
                     Estimation.makeAlleles model.allelePair newSelectedAggPositions
 
+                lastAggPositionsA =
+                    -- just get fresh AGG positions from alleleA
+                    List.indexedMap
+                        (\i t ->
+                            if t == Triplet.Agg then
+                                Just i
+
+                            else
+                                Nothing
+                        )
+                        newAllellePair.alleleA.triplets
+                        |> List.filterMap identity
+
+                lastAggPositionsB =
+                    -- just get fresh AGG positions from alleleB
+                    List.indexedMap
+                        (\i t ->
+                            if t == Triplet.Agg then
+                                Just i
+
+                            else
+                                Nothing
+                        )
+                        newAllellePair.alleleB.triplets
+                        |> List.filterMap identity
+
                 newCalculatedSimTripletValues =
                     SimTriplet.calculateFragmentDistribution newAllellePair
+
+                newCalculatedSimAggValues =
+                    SimAgg.calculateFragmentDistribution newAllellePair
+
+                newCalculatedSimAggRevValues =
+                    SimAggRev.calculateFragmentDistribution newAllellePair
             in
-            { model | aggPeakPositions = newPeakIndices, aggInterruptionEstimates = newEstimatedAggPositions, selectedAggPositions = newSelectedAggPositions, allelePair = newAllellePair, simTripletValues = newCalculatedSimTripletValues }
+            { model
+                | aggPeakPositions = newPeakIndices
+                , lastAggPositionsA = lastAggPositionsA
+                , lastAggPositionsB = lastAggPositionsB
+                , aggInterruptionEstimates = newEstimatedAggPositions
+                , selectedAggPositions = newSelectedAggPositions
+                , allelePair = newAllellePair
+                , simTripletValues = newCalculatedSimTripletValues
+                , simAggValues = newCalculatedSimAggValues
+                , simAggRevValues = newCalculatedSimAggRevValues
+            }
                 |> withCmd Cmd.none
+
+        ClickedReset ->
+            ( initialModel, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -298,7 +552,8 @@ view model =
         [ div [ id "section-top" ]
             [ div [ id "section-inputs" ]
                 [ h1 [ class "title" ] [ text "AGGEstimate" ]
-                , h2 [ class "subtitle" ] [ text "Input the allele sizes and the peak numbers at which a dip starts (indicating an AGG interspersion)." ]
+                , h2 [ class "subtitle" ] [ text "Input the allele sizes and the positions at which an AGG dip starts (first peak = position 5) e.g." ]
+                , img [ class "example-image", src "example.png", alt "Example" ] []
                 , div [] [ viewPeakSizeInputs model ]
                 ]
             , div [ id "section-outputs" ]
@@ -308,6 +563,8 @@ view model =
                     , viewAllele AlleleB model.allelePair.alleleB
                     ]
                 , viewSimTriplet model
+                , viewSimAgg model
+                , viewSimAggRev model
                 ]
             ]
         ]
@@ -318,13 +575,20 @@ viewPeakSizeInputs model =
     div [ id "peak-size-inputs" ]
         -- table with 3 columns
         [ table [ id "peak-size-inputs-table" ]
-            (tr []
-                [ th [] [ text "Peak" ]
-                , th [] [ input [ type_ "number", value (String.fromInt (Allele.getSize model.allelePair.alleleA)), onInput (ChangedAlleleSize AlleleA) ] [] ]
-                , th [] [ input [ type_ "number", value (String.fromInt (Allele.getSize model.allelePair.alleleB)), onInput (ChangedAlleleSize AlleleB) ] [] ]
+            ([ tr []
+                [ th [] []
+                , th [] []
+                , th [ colspan 2, class "table-header-alleles" ] [ text "Alleles" ]
                 , th [] []
                 ]
-                :: List.indexedMap
+             , tr []
+                [ th [ colspan 2 ] [ button [ class "reset-button", onClick ClickedReset ] [ text "Reset" ] ]
+                , th [] [ input [ type_ "number", value (String.fromInt (Allele.getSize model.allelePair.alleleA)), onInput (ChangedAlleleSizeTable AlleleA) ] [] ]
+                , th [] [ input [ type_ "number", value (String.fromInt (Allele.getSize model.allelePair.alleleB)), onInput (ChangedAlleleSizeTable AlleleB) ] [] ]
+                , th [] []
+                ]
+             ]
+                ++ List.indexedMap
                     (\i ( peakIndex, selectedAtIndex ) ->
                         let
                             ( classA, classB ) =
@@ -336,19 +600,29 @@ viewPeakSizeInputs model =
 
                                 else
                                     ( "unknown", "unknown" )
+
+                            extraElementAdder =
+                                if i == 0 then
+                                    \x -> td [ rowspan (List.length model.aggPeakPositions), class "table-header-dips" ] [ text "Dips" ] :: x
+
+                                else
+                                    identity
                         in
                         tr []
-                            [ td [] [ input [ type_ "number", value (String.fromInt peakIndex), onInput (String.toInt >> Maybe.withDefault 0 >> ChangedPeakIndex i) ] [] ]
-                            , td [ class "table-value", class classA, onClick (SelectedEstimatedPeak i AlleleA) ] [ text (String.fromInt (Estimation.calculateEstimatedAggPosition model.allelePair.alleleA peakIndex)) ]
-                            , td [ class "table-value", class classB, onClick (SelectedEstimatedPeak i AlleleB) ] [ text (String.fromInt (Estimation.calculateEstimatedAggPosition model.allelePair.alleleB peakIndex)) ]
-                            , td [ class "delete-peak-index", onClick (ClickedDeletePeakIndex i) ]
-                                [ text "X" ]
-                            ]
+                            (extraElementAdder
+                                [ td [] [ input [ type_ "number", value (String.fromInt peakIndex), onInput (String.toInt >> Maybe.withDefault 0 >> ChangedPeakIndex i) ] [] ]
+                                , td [ class "table-value", class classA, onClick (SelectedEstimatedPeak i AlleleA) ] [ text (String.fromInt (Estimation.calculateEstimatedAggPosition model.allelePair.alleleA peakIndex)) ]
+                                , td [ class "table-value", class classB, onClick (SelectedEstimatedPeak i AlleleB) ] [ text (String.fromInt (Estimation.calculateEstimatedAggPosition model.allelePair.alleleB peakIndex)) ]
+                                , td [ class "delete-peak-index", onClick (ClickedDeletePeakIndex i) ]
+                                    [ text "X" ]
+                                ]
+                            )
                     )
                     (List.map2 Tuple.pair model.aggPeakPositions model.selectedAggPositions)
+                ++ [ tr []
+                        [ td [ colspan 4 ] [ button [ class "add-peak-index-button", onClick ClickedAddPeakIndex ] [ text "Add AGG Dip" ] ] ]
+                   ]
             )
-        , div [ class "add-peak-index-button-container" ]
-            [ button [ class "add-peak-index-button", onClick ClickedAddPeakIndex ] [ text "Add Peak Index" ] ]
         ]
 
 
@@ -472,6 +746,140 @@ viewSimTriplet model =
                                     , Svg.text_ [ SA.class "no-pointer", SA.x (String.fromFloat (toFloat i * 3 - 1.5)), SA.y "110", SA.fill "black", SA.fontSize "8px", SA.textAnchor "middle" ] [ Svg.text (String.fromInt (i * 3) ++ "bp") ]
                                     ]
                             )
+                    )
+                ]
+            ]
+        ]
+
+
+viewSimAgg : Model -> Html Msg
+viewSimAgg model =
+    let
+        -- Get array positions of any value above 0
+        aboveZeroIndices =
+            model.simAggValues
+                |> Array.Extra.indexedMapToList
+                    (\i v ->
+                        if v > 0 then
+                            Just i
+
+                        else
+                            Nothing
+                    )
+                |> List.filterMap identity
+
+        xmin =
+            80
+
+        xminString =
+            String.fromInt xmin
+
+        xmax =
+            SimTriplet.primerRDistance + SimTriplet.primerRLength + (Allele.maxAlleleSize * Triplet.size) + SimTriplet.primerFDistance + SimTriplet.primerFLength + SimTriplet.tripletPrimerAddLength + 10
+
+        xmaxString =
+            String.fromInt xmax
+
+        viewBoxString =
+            xminString ++ " 1 " ++ xmaxString ++ " 110"
+    in
+    div [ class "sim-container" ]
+        [ div [ class "sim-graph" ]
+            [ svg [ SA.viewBox viewBoxString ]
+                [ Svg.g []
+                    [ Svg.polyline
+                        [ SA.points
+                            (SimAgg.arrayValuesToPolylinePoints model.simAggValues
+                                |> List.map (\( x, y ) -> String.fromFloat x ++ "," ++ String.fromFloat (100 - 10 * y))
+                                |> String.join " "
+                            )
+                        , SA.stroke "blue"
+                        , SA.fill "none"
+                        , SA.strokeLinejoin "round"
+                        ]
+                        []
+                    ]
+
+                -- Axis rectangle
+                , Svg.g []
+                    [ Svg.rect [ SA.x xminString, SA.y "1", SA.width (String.fromInt xmax), SA.height "99", SA.fill "none", SA.stroke "black" ] []
+                    , Svg.text_ [ SA.x (String.fromInt (xmin + 4)), SA.y "14", SA.fill "#222", SA.fontSize "10px", SA.textAnchor "left" ] [ Svg.text "A-primed PCR" ]
+                    ]
+
+                -- Add text above all aboveZeroIndices
+                , Svg.g []
+                    (List.map
+                        (\i ->
+                            Svg.text_ [ SA.x (String.fromFloat (toFloat i)), SA.y "110", SA.fill "#222", SA.fontSize "8px", SA.textAnchor "middle" ] [ Svg.text (String.fromInt i ++ "bp") ]
+                        )
+                        aboveZeroIndices
+                    )
+                ]
+            ]
+        ]
+
+
+viewSimAggRev : Model -> Html Msg
+viewSimAggRev model =
+    let
+        -- Get array positions of any value above 0
+        aboveZeroIndices =
+            model.simAggRevValues
+                |> Array.Extra.indexedMapToList
+                    (\i v ->
+                        if v > 0 then
+                            Just i
+
+                        else
+                            Nothing
+                    )
+                |> List.filterMap identity
+
+        xmin =
+            80
+
+        xminString =
+            String.fromInt xmin
+
+        xmax =
+            SimTriplet.primerRDistance + SimTriplet.primerRLength + (Allele.maxAlleleSize * Triplet.size) + SimTriplet.primerFDistance + SimTriplet.primerFLength + SimTriplet.tripletPrimerAddLength + 10
+
+        xmaxString =
+            String.fromInt xmax
+
+        viewBoxString =
+            xminString ++ " 1 " ++ xmaxString ++ " 110"
+    in
+    div [ class "sim-container" ]
+        [ div [ class "sim-graph" ]
+            [ svg [ SA.viewBox viewBoxString ]
+                [ Svg.g []
+                    [ Svg.polyline
+                        [ SA.points
+                            (SimAggRev.arrayValuesToPolylinePoints model.simAggRevValues
+                                |> List.map (\( x, y ) -> String.fromFloat x ++ "," ++ String.fromFloat (100 - 10 * y))
+                                |> String.join " "
+                            )
+                        , SA.stroke "blue"
+                        , SA.fill "none"
+                        , SA.strokeLinejoin "round"
+                        ]
+                        []
+                    ]
+
+                -- Axis rectangle
+                , Svg.g []
+                    [ Svg.rect [ SA.x xminString, SA.y "1", SA.width (String.fromInt xmax), SA.height "99", SA.fill "none", SA.stroke "black" ] []
+                    , Svg.text_ [ SA.x (String.fromInt (xmin + 4)), SA.y "14", SA.fill "#222", SA.fontSize "10px", SA.textAnchor "left" ] [ Svg.text "T-primed PCR" ]
+                    ]
+
+                -- Add text above all aboveZeroIndices
+                , Svg.g []
+                    (List.map
+                        (\i ->
+                            Svg.text_ [ SA.x (String.fromFloat (toFloat i)), SA.y "110", SA.fill "#222", SA.fontSize "8px", SA.textAnchor "middle" ] [ Svg.text (String.fromInt i ++ "bp") ]
+                        )
+                        aboveZeroIndices
                     )
                 ]
             ]
