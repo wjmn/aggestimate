@@ -4,7 +4,7 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "https://wjmn.github.io/aggestimate/example.png"
   },
   {
-    "revision": "4b1d575ea1b483f0dc3fa260834b8d8d",
+    "revision": "d4e7e77ffbf9dae4d6764c9831e6af2e",
     "url": "https://wjmn.github.io/aggestimate/index.html"
   },
   {
@@ -12,16 +12,16 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "https://wjmn.github.io/aggestimate/manifest.json"
   },
   {
-    "revision": "178237f81a8b13d7ab6766dd736cadc2",
+    "revision": "c202b7b297c748f7fca0d71d50bf14f2",
     "url": "https://wjmn.github.io/aggestimate/nolin_2015_data.csv"
   },
   {
-    "revision": "634826325f986f75f68c",
+    "revision": "df080e47f63df63df097",
     "url": "https://wjmn.github.io/aggestimate/static/css/main.341090d1.chunk.css"
   },
   {
-    "revision": "634826325f986f75f68c",
-    "url": "https://wjmn.github.io/aggestimate/static/js/main.63482632.chunk.js"
+    "revision": "df080e47f63df63df097",
+    "url": "https://wjmn.github.io/aggestimate/static/js/main.df080e47.chunk.js"
   },
   {
     "revision": "d1c932b2a2430c2160cc",
